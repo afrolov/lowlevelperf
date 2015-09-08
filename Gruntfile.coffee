@@ -1,5 +1,8 @@
 # Generated on 2015-09-08 using generator-reveal 0.5.3
 module.exports = (grunt) ->
+    
+    console.log('XDBG3')
+    grunt.loadTasks('./grunt-tasks')
 
     grunt.initConfig
 
@@ -21,7 +24,7 @@ module.exports = (grunt) ->
                     'templates/_section.html'
                     'slides/list.json'
                 ]
-                tasks: ['buildIndex']
+                tasks: ['splitslides', 'buildIndex']
 
             coffeelint:
                 files: ['Gruntfile.coffee']
@@ -79,6 +82,17 @@ module.exports = (grunt) ->
                     filter: 'isFile'
                 }]
 
+        splitslides:
+            task:
+                options:
+                    separator: '---'
+                    prefix: 'slide'
+                files: [{
+                    expand: true
+                    src: ['slides/all.md']
+                    dest: ''
+                    }]
+
         
 
 
@@ -109,6 +123,7 @@ module.exports = (grunt) ->
 
     grunt.registerTask 'serve',
         'Run presentation locally and start watch process (living document).', [
+            'splitslides'
             'buildIndex'
             'connect:livereload'
             'watch'
@@ -117,6 +132,7 @@ module.exports = (grunt) ->
     grunt.registerTask 'dist',
         'Save presentation files to *dist* directory.', [
             'test'
+            'splitslides'
             'buildIndex'
             'copy'
         ]

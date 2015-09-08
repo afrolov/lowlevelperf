@@ -1,10 +1,8 @@
-
-# Low-level performance optimization
-
-From the terminal, pop in:
-
-  ```yo reveal:slide "Slide Title"```
-
-Available options:
-
- ```--markdown --attributes --notes```
+# Low level performance optimization
+Artem Frolov (me)
+---
+slide 2
+---
+slide 3
+---
+slide 4
