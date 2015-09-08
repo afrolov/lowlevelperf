@@ -1,7 +1,6 @@
 # Generated on 2015-09-08 using generator-reveal 0.5.3
 module.exports = (grunt) ->
     
-    console.log('XDBG3')
     grunt.loadTasks('./grunt-tasks')
 
     grunt.initConfig
@@ -18,13 +17,19 @@ module.exports = (grunt) ->
                     'resources/**'
                 ]
 
+            slides:
+                files: [
+                    'index.md',
+                ]
+                tasks: ['splitslides']
+
             index:
                 files: [
                     'templates/_index.html'
                     'templates/_section.html'
                     'slides/list.json'
                 ]
-                tasks: ['splitslides', 'buildIndex']
+                tasks: ['buildIndex']
 
             coffeelint:
                 files: ['Gruntfile.coffee']
@@ -89,8 +94,8 @@ module.exports = (grunt) ->
                     prefix: 'slide'
                 files: [{
                     expand: true
-                    src: ['slides/all.md']
-                    dest: ''
+                    src: ['./index.md']
+                    dest: 'slides/'
                     }]
 
         
@@ -131,7 +136,7 @@ module.exports = (grunt) ->
 
     grunt.registerTask 'dist',
         'Save presentation files to *dist* directory.', [
-            'test'
+            'test',
             'splitslides'
             'buildIndex'
             'copy'
