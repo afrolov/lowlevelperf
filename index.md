@@ -1,9 +1,14 @@
-## Performance optimization
-Artem Frolov
+#### TDS University
+## Low-level performance optimization
+
+#### Artem Frolov
+Quantitative development, UQL
+
+
 ---
 ## General guidelines
 * Always be profiling
-* Do not assume - measure!
+* Do not assume &mdash; measure!
 * Make it compile, make it right, make it fast
 * Set targets
 * Concentrate on low-hanging fruit first
@@ -22,14 +27,14 @@ Artem Frolov
 * Task parallelization
 ---
 ## Low level performance optimization
-(With understanding of CPU and compilation)
+(With understanding of CPU, memory, and compilation)
 
 * Cache locality
 * CPU pipeline
 * Vectorization
-* Loop-level parallelization
+* Data parallelization
 ---
-## Data serialization
+## High Level: Data serialization
 * Verbose textual formats: good for debugging, bad for speed
 * Keep data in memory as much as possible
 * On-disk
@@ -37,11 +42,26 @@ Artem Frolov
   * Relational databases
   * NoSQL databases
   * HDF5
+* In transport
+  * bson
+  * Thrift
+  * Google protobufs
+
 ---
-## Algorithms and data structures
+## High Level: Algorithms and data structures
 * Binary search vs. Linear: O(log N) vs. O(N)
 * rb-trees and hash maps vs. vectors
+
 ---
+## High-level vs. low-level
+* Most code (esp. user facing) is I/O bound
+* Low-level makes most sense for CPU-bound and memory-bound code
+  * Quantitative libraries
+  * Scientific and technical computing
+  * System-level code (drivers, DBs, graphical libraries,...)
+* Do low-level opt only after high-level opt  
+---
+
 ## Latency numbers every programmer should know
 
 <table>
@@ -88,6 +108,18 @@ Artem Frolov
 * Automatic memory management
 * Virtual calls
 * Value boxing/unboxing
+---
+## System programming lanugages
+* Direct access to hardware
+* Zero cost abstractions are possible
+* Examples:
+  * C
+  * C++
+  * Ada
+  * D
+  * Rust
+  * Go
+
 ---
 ## Cache locality
 * Memory is cached by chunks (cache lines)
@@ -141,13 +173,13 @@ inline size_t matrix_idx( double* matrix, size_t n_row_size,
 	return j * n_column_size + i;
 #endif
 }
-inline double matrix_get(double* matrix, size_t n_row_size,
-    size_t n_column_size, size_t i, size_t j) {
-	return matrix [matrix_idx(matrix, n_row_size, n_column_size, i, j)];
+inline double matrix_get(double* mtx, size_t n_row_sz,
+    size_t n_col_sz, size_t i, size_t j) {
+	return mtx[matrix_idx(matrix, n_row_sz, n_col_sz, i, j)];
 }
-inline void matrix_set(double* matrix, size_t n_row_size,
-    size_t n_column_size, size_t i, size_t j, double val) {
-	matrix [matrix_idx(matrix, n_row_size, n_column_size, i, j)] = val;
+inline void matrix_set(double* mtx, size_t n_row_sz,
+    size_t n_col_sz, size_t i, size_t j, double val) {
+	mtx[matrix_idx(matrix, n_row_sz, n_col_sz, i, j)] = val;
 }
 
 ```
@@ -183,11 +215,11 @@ struct struct_of_arrays_t {
 ## Vectorization
 ```c
 float a[8192], b[8192], c[8192];
-for (i=0; i<n; i++)
+for (i=0; i<sizeof(a)/sizeof(a[0]); i++)
     c[i] = a[i] + b[i];
 ```
 ```c
-for (i=0; i<n; i+=4) {
+for (i=0; i<sizeof(a)/sizeof(a[0]); i+=4) {
 	/* vectorized into single instruction */
     c[i + 0] = a[i + 0] + b[i + 0];
     c[i + 1] = a[i + 1] + b[i + 1];
@@ -196,9 +228,90 @@ for (i=0; i<n; i+=4) {
 }
 ```	
 ---
+## Avoiding unnecessary data copying
+* Pass objects by (constant) reference
+* Rvalue semantics in C++
+---
+## Passing objects by reference
+```c++
+vector<double> longvec1(8192);
+vector<double> longvec2(8192);
+/* ... */
+auto result = scalar_mult(longvec1, longvec2);
+```
 
-## Unnecessary data copying
-* Const reference
+```c++
+vector<double> scalar_mult(vector<double> a, vector<double> b) {
+	/* ... */
+}
+```
+```c++
+vector<double> scalar_mult(
+	const vector<double>& a, 
+	const vector<double>& b) 
+{
+	/* ... */
+}
+```
+---
+## Rvalue semantics (C++03)
+
+Returning heavy objects from functions/methods
+requires copying from temporary
+```c++
+ResourceHeavy v1, v2;
+
+ResourceHeavy createRHSum(
+	const ResourceHeavy& a, 
+	const ResourceHeavy& b) 
+{
+	ResourceHeavy result(combine(a.resource, b.resource));
+	return result;
+}
+
+ResourceHeavy r(createRHSum(v1, v2));
+```
+
+---
+## Avoiding extra copying (before C++03)
+```c++
+ResourceHeavy v1, v2;
+ResourceHeavy r;
+
+void createRHSum(
+	const ResourceHeavy& a, 
+	const ResourceHeavy& b,
+	ResourceHeavy r) 
+{
+	r.resource = combine(a.resource, b.resource);
+}
+
+createRHSum(v1, v2, r);
+```
+---
+## Avoiding copying (rvalue semantics C++03 and newer)
+
+
+```c++
+class ResourceHeavy {
+  ResourceHeavy(ResourceHeavy&& other) {
+  	this->resource = other.resource;
+  	other.resource = nullptr;
+  }	
+};
+ResourceHeavy v1, v2;
+
+ResourceHeavy createRHSum(
+	const ResourceHeavy& a, 
+	const ResourceHeavy& b) 
+{
+	ResourceHeavy result(combine(a.resource, b.resource);
+	return result;
+}
+
+ResourceHeavy r(createRHSum(v1, v2));
+```
+
 ---
 ## CPU Instruction pipeline
 * Fetch
@@ -226,13 +339,86 @@ for (i=0; i<n; i+=4) {
 ---
 ## Helping CPU with prediction
 * Static hints
+* Profile-guided optimization (PGO)
+* Makes sense for hot loops
+
 ```c
 if (unlikely(v == some_unlikely_value)) {
 	/* do something here */
 }
 ```
-* Profile-guided optimization (PGO)
-* Makes sense for hot loops
+
 ---
 ## OpenMP
 * Fine-grained parallelization
+* API to support shared memory multiprocessing
+* C, C++, and Fortran
+* Set of compiler pragmas
+
+---
+## OpenMP: how it works
+* For each section *master* thread *forks* a number of *slave* threads
+* Work sharing constructs specify division of work ans synchronization
+* At the end of section *slave* threads *join* into the master thread
+---
+## OpenMP: simplest example
+```c
+float a[8192], b[8192], c[8192];
+#pragma omp for
+for (i=0; i<sizeof(a)/sizeof(a[0]); i++)	
+    c[i] = a[i] + b[i];
+```
+---
+## OpenMP: thread-local storage, scheduling, and crtitcal sections
+```c
+float a[8192], b[8192], c[8192];
+double sum = 0.0, loc_sum = 0.0;
+#pragma omp parallel private(loc_sum)
+{
+	#pragma omp for(static, 1)
+	for (i=0; i<sizeof(a)/sizeof(a[0]); i++) {
+    	c[i] = a[i] * b[i];
+   		loc_sum += c[i];
+	}
+    #pragma omp critical
+    sum = sum + loc_sum;
+}
+```
+
+---
+## OpenMP: support for reduction
+```c
+float a[8192], b[8192], c[8192];
+long sum = 0;
+ #pragma omp parallel for reduction(+:sum) schedule(static,1)
+ for(i = 0; i < N; i++) {      
+     sum = sum + a[i]*b[i];
+ }
+```
+
+---
+## OpenMP: dynamic scheduling
+```c
+#pragma omp parallel private(j,k) 
+{  
+  #pragma omp for schedule(dynamic, 1)
+  for(i = 2; i <= N-1; i++)
+     for(j = 2; j <= i; j++)
+        for(k = 1; k <= M; k++)
+           b[i][j] += a[i-1][j]/k + a[i+1][j]/k;
+}
+```
+---
+## OpenMP
+
+* pros
+  * Simple
+  * Portable
+  * Piece-meal approach to parallelization
+* cons
+  * Risk of race conditions
+  * Maybe difficult to debug
+  * Error-handling is compilcated
+---
+# Thank you!
+## Q&amp;A
