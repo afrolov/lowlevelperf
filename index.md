@@ -300,15 +300,12 @@ class ResourceHeavy {
   }	
 };
 ResourceHeavy v1, v2;
-
 ResourceHeavy createRHSum(
 	const ResourceHeavy& a, 
-	const ResourceHeavy& b) 
-{
-	ResourceHeavy result(combine(a.resource, b.resource);
+	const ResourceHeavy& b) {
+	ResourceHeavy result(combine(a.resource, b.resource));
 	return result;
 }
-
 ResourceHeavy r(createRHSum(v1, v2));
 ```
 
