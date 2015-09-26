@@ -1,18 +1,8 @@
-#### TDS University
+#### TD Tech talks
 ## Low-level performance optimization
 
 #### Artem Frolov
 Quantitative development, UQL
-
-
----
-## General guidelines
-* Always be profiling
-* Do not assume &mdash; measure!
-* Make it compile, make it right, make it fast
-* Set targets
-* Concentrate on low-hanging fruit first
-* Do not reinvent the wheel
 
 ---
 ## High level performance optimization
@@ -33,25 +23,6 @@ Quantitative development, UQL
 * CPU pipeline
 * Vectorization
 * Data parallelization
----
-## High Level: Data serialization
-* Verbose textual formats: good for debugging, bad for speed
-* Keep data in memory as much as possible
-* On-disk
-  * Key-value stores (memcached, redis)
-  * Relational databases
-  * NoSQL databases
-  * HDF5
-* In transport
-  * bson
-  * Thrift
-  * Google protobufs
-
----
-## High Level: Algorithms and data structures
-* Binary search vs. Linear: O(log N) vs. O(N)
-* rb-trees and hash maps vs. vectors
-
 ---
 ## High-level vs. low-level
 * Most code (esp. user facing) is I/O bound
