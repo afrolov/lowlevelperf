@@ -6,3 +6,5 @@ dist
 index.html
 slides/slide_*
 slides/list.json
+examples/pearson-*
+examples/simplemc-*

@@ -1,18 +1,8 @@
-#### TDS University
-## Low-level performance optimization
+#### TD Tech talks
+## Low-level performance optimization: Cache Locality and OpenMP
 
 #### Artem Frolov
 Quantitative development, UQL
-
-
----
-## General guidelines
-* Always be profiling
-* Do not assume &mdash; measure!
-* Make it compile, make it right, make it fast
-* Set targets
-* Concentrate on low-hanging fruit first
-* Do not reinvent the wheel
 
 ---
 ## High level performance optimization
@@ -34,24 +24,9 @@ Quantitative development, UQL
 * Vectorization
 * Data parallelization
 ---
-## High Level: Data serialization
-* Verbose textual formats: good for debugging, bad for speed
-* Keep data in memory as much as possible
-* On-disk
-  * Key-value stores (memcached, redis)
-  * Relational databases
-  * NoSQL databases
-  * HDF5
-* In transport
-  * bson
-  * Thrift
-  * Google protobufs
-
----
-## High Level: Algorithms and data structures
-* Binary search vs. Linear: O(log N) vs. O(N)
-* rb-trees and hash maps vs. vectors
-
+## This talk
+* Cache locality
+* Parallelization with OpenMP
 ---
 ## High-level vs. low-level
 * Most code (esp. user facing) is I/O bound
@@ -93,32 +68,6 @@ Quantitative development, UQL
 <tr><td>Read 1MB sequentially from disk</td><td align='right'>20,000,000 ns</td><td align='right'>20 ms</td><td>80X RAM, 20X SSD</td></tr>
 <tr><td>Send packet CA, US -> NL -> CA, US</td><td align='right'>150,000,000 ns</td><td align='right'>150 ms</td><td></td></tr>
 </table>
-
----
-## Zero-cost abstraction
-> What you don't use, you don't pay for. What you use, you couldn't hand code any better
-> -- Bjarne Stroustrup
----
-## Examples of zero-cost abstractions
-* Basic C types
-* C++ templates
-* Enumerated types
----
-## Examples of non-zero-cost abstractions
-* Automatic memory management
-* Virtual calls
-* Value boxing/unboxing
----
-## System programming lanugages
-* Direct access to hardware
-* Zero cost abstractions are possible
-* Examples:
-  * C
-  * C++
-  * Ada
-  * D
-  * Rust
-  * Go
 
 ---
 ## Cache locality
@@ -165,7 +114,7 @@ Quantitative development, UQL
 ---
 ### Testing Pearson correlation
 ```c
-inline size_t matrix_idx( double* matrix, size_t n_row_size,
+inline size_t matrix_idx(size_t n_row_size,
     size_t n_column_size, size_t i, size_t j) {
 #if MATRIX_ORDER_ROW_MAJOR
 	return i * n_row_size + j;
@@ -184,15 +133,16 @@ inline void matrix_set(double* mtx, size_t n_row_sz,
 
 ```
 ---
+## Cache locality: Demo
+---
 ### Pearson correlation results
 
 <table>
 <tr><th>Series number and length</th><th>Row-major time</th><th>Column-major time</th><th>Factor</th></tr>
-<tr><td>256</td><td>0.033</td><td>0.093</td><td>2.8x</td></tr>
-<tr><td>512</td><td>0.182</td><td>0.381</td><td>2.0x</td></tr>
-<tr><td>1024</td><td>1.445</td><td>13.884</td><td>9.6x</td></tr>
-<tr><td>2048</td><td>11.49</td><td>143.66</td><td>12.5x</td></tr>
-<tr><td>4096</td><td>93.37</td><td>1409.39</td><td>15x</td></tr>
+<tr><td>256 x 256</td><td>0.152</td><td>0.172</td><td>1.13x</td></tr>
+<tr><td>512 x 512</td><td>1.242</td><td>1.486</td><td>1.19x</td></tr>
+<tr><td>1024 x 1024</td><td>10.716</td><td>40.331</td><td>3.76x</td></tr>
+<tr><td>2048 x 2048</td><td>80.094</td><td>368.268</td><td>4.82x</td></tr>
 </table>
 
 ---
@@ -210,141 +160,6 @@ struct struct_of_arrays_t {
 	uint8_t b[N];	
 } StructureOfArrays;
 ```
-
----
-## Vectorization
-```c
-float a[8192], b[8192], c[8192];
-for (i=0; i<sizeof(a)/sizeof(a[0]); i++)
-    c[i] = a[i] + b[i];
-```
-```c
-for (i=0; i<sizeof(a)/sizeof(a[0]); i+=4) {
-	/* vectorized into single instruction */
-    c[i + 0] = a[i + 0] + b[i + 0];
-    c[i + 1] = a[i + 1] + b[i + 1];
-    c[i + 2] = a[i + 2] + b[i + 2];
-    c[i + 3] = a[i + 3] + b[i + 3];
-}
-```	
----
-## Avoiding unnecessary data copying
-* Pass objects by (constant) reference
-* Rvalue semantics in C++
----
-## Passing objects by reference
-```c++
-vector<double> longvec1(8192);
-vector<double> longvec2(8192);
-/* ... */
-auto result = scalar_mult(longvec1, longvec2);
-```
-
-```c++
-vector<double> scalar_mult(vector<double> a, vector<double> b) {
-	/* ... */
-}
-```
-```c++
-vector<double> scalar_mult(
-	const vector<double>& a, 
-	const vector<double>& b) 
-{
-	/* ... */
-}
-```
----
-## Rvalue semantics (C++03)
-
-Returning heavy objects from functions/methods
-requires copying from temporary
-```c++
-ResourceHeavy v1, v2;
-
-ResourceHeavy createRHSum(
-	const ResourceHeavy& a, 
-	const ResourceHeavy& b) 
-{
-	ResourceHeavy result(combine(a.resource, b.resource));
-	return result;
-}
-
-ResourceHeavy r(createRHSum(v1, v2));
-```
-
----
-## Avoiding extra copying (before C++03)
-```c++
-ResourceHeavy v1, v2;
-ResourceHeavy r;
-
-void createRHSum(
-	const ResourceHeavy& a, 
-	const ResourceHeavy& b,
-	ResourceHeavy r) 
-{
-	r.resource = combine(a.resource, b.resource);
-}
-
-createRHSum(v1, v2, r);
-```
----
-## Avoiding copying (rvalue semantics C++03 and newer)
-
-
-```c++
-class ResourceHeavy {
-  ResourceHeavy(ResourceHeavy&& other) {
-  	this->resource = other.resource;
-  	other.resource = nullptr;
-  }	
-};
-ResourceHeavy v1, v2;
-ResourceHeavy createRHSum(
-	const ResourceHeavy& a, 
-	const ResourceHeavy& b) {
-	ResourceHeavy result(combine(a.resource, b.resource));
-	return result;
-}
-ResourceHeavy r(createRHSum(v1, v2));
-```
-
----
-## CPU Instruction pipeline
-* Fetch
-* Decode
-* Execute
-* Memory Access
-* Register write back
----
-## CPU Instruction pipeline chart
-
-<table border="1">
-<tr><th>Instr#</th><th colspan="7" align="center">Stage</th></tr>
-<tr><td>1</td> <td>IF</td> <td>ID</td> <td>EX</td> <td bgcolor="green">MEM</td> <td>WB</td> <td> </td> <td> </td></tr>
-<tr><td>2</td> <td>  </td> <td>IF</td> <td>ID</td> <td bgcolor="green">EX</td> <td>MEM</td> <td>WB</td> <td> </td></tr>
-<tr><td>3</td> <td>  </td> <td>  </td> <td>IF</td> <td bgcolor="green">ID</td> <td>EX</td> <td>MEM</td> <td>WB</td></tr>
-<tr><td>4</td> <td>  </td> <td>  </td> <td>  </td> <td bgcolor="green">IF</td> <td>ID</td> <td>EX</td> <td>MEM</td></tr>
-<tr><td>Clock cycle</td> <td>1</td> <td>2</td> <td>3</td> <td bgcolor="green">4</td> <td>5</td> <td>6</td> <td>7</td></tr>
-</table>
----
-## Implications of pipelining
-* Data dependence between instructions: reordering improves performance
-* On branching instructions CPU has to choose what to pipeline
-* CPUs use reasonable heuristics for prediction
-* Misprediction causes pipeline restart
----
-## Helping CPU with prediction
-* Static hints
-* Profile-guided optimization (PGO)
-* Makes sense for hot loops
-
-```c
-if (unlikely(v == some_unlikely_value)) {
-	/* do something here */
-}
-```
-
 ---
 ## OpenMP
 * Fine-grained parallelization
@@ -366,7 +181,7 @@ for (i=0; i<sizeof(a)/sizeof(a[0]); i++)
     c[i] = a[i] + b[i];
 ```
 ---
-## OpenMP: thread-local storage, scheduling, and crtitcal sections
+## OpenMP: thread-local storage, scheduling, and critical sections
 ```c
 float a[8192], b[8192], c[8192];
 double sum = 0.0, loc_sum = 0.0;
@@ -406,6 +221,8 @@ long sum = 0;
 }
 ```
 ---
+## OpenMP: Demo
+---
 ## OpenMP
 
 * pros
@@ -418,4 +235,5 @@ long sum = 0;
   * Error-handling is compilcated
 ---
 # Thank you!
-## Q&amp;A
+## Q&amp;A 
+Artem.Frolov@tdsecurities.com
