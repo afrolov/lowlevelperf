@@ -133,15 +133,16 @@ inline void matrix_set(double* mtx, size_t n_row_sz,
 
 ```
 ---
+## Cache locality: Demo
+---
 ### Pearson correlation results
 
 <table>
 <tr><th>Series number and length</th><th>Row-major time</th><th>Column-major time</th><th>Factor</th></tr>
-<tr><td>256</td><td>0.033</td><td>0.093</td><td>2.8x</td></tr>
-<tr><td>512</td><td>0.182</td><td>0.381</td><td>2.0x</td></tr>
-<tr><td>1024</td><td>1.445</td><td>13.884</td><td>9.6x</td></tr>
-<tr><td>2048</td><td>11.49</td><td>143.66</td><td>12.5x</td></tr>
-<tr><td>4096</td><td>93.37</td><td>1409.39</td><td>15x</td></tr>
+<tr><td>256 x 256</td><td>0.152</td><td>0.172</td><td>1.13x</td></tr>
+<tr><td>512 x 512</td><td>1.242</td><td>1.486</td><td>1.19x</td></tr>
+<tr><td>1024 x 1024</td><td>10.716</td><td>40.331</td><td>3.76x</td></tr>
+<tr><td>2048 x 2048</td><td>80.094</td><td>368.268</td><td>4.82x</td></tr>
 </table>
 
 ---
@@ -159,8 +160,6 @@ struct struct_of_arrays_t {
 	uint8_t b[N];	
 } StructureOfArrays;
 ```
----
-## Cache locality: Demo
 ---
 ## OpenMP
 * Fine-grained parallelization
