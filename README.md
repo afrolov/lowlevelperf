@@ -3,7 +3,8 @@
 This is the slides and the C++ code examples I used to give a tech talk at TD
 (Toronto-Dominion Bank).
 
-The simplest way to view the slides is to use PDF file lowlevelperf.pdf
+The simplest way to view the slides is to use PDF file 
+"Low-level performance optimization.pdf"
 
 The slides are base on [reveal.js](http://lab.hakim.se/reveal-js/#/). 
 To view the presentation with reveal.js, you need to: 
